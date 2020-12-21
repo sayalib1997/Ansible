@@ -1,0 +1,107 @@
+---
+
+- hosts: all
+
+  become: true
+
+  vars_files:
+
+   - vars/default.yml 
+
+  tasks:
+
+   - name: Install aptitude using apt
+
+     apt: name=aptitude state=latest update_cache=yes force_apt_get=yes
+
+   - name: Install required system packages
+
+     apt:
+
+      name={{ item }}
+
+      state=latest
+
+      update_cache=yes
+
+     loop: [ 'apt-transport-https', 'ca-certificates', 'curl', 'software-properties-common', 'python3-pip', 'virtualenv', 'python3-setuptools']
+
+   - name: Add Docker GPG apt Key
+
+     apt_key:
+
+       url: https://download.docker.com/linux/ubuntu/gpg
+
+       state: present
+
+   - name: Add Docker Repository
+
+     apt_repository:
+
+       repo: deb https://download.docker.com/linux/ubuntu bionic stable
+
+       state: present
+
+   - name: Update apt and install docker-ce
+
+     apt:
+
+       update_cache=yes
+
+       name=docker-ce
+
+       state=latest
+
+   - name: Install Docker Module for Python
+
+     pip:
+
+      name: docker
+
+ 
+
+   - name: Pull default Docker image
+
+     docker_image:
+
+      name: "{{ container_image }}"
+
+      source: pull
+
+   - name: Ensure service running
+     service:
+      name: docker
+      state: started
+
+   - name: Create build directory
+     file:
+       path: /root/demo-dockerfile
+       state: directory
+       owner: root
+       group: root
+       mode: '0755'
+
+   - name: copy Dockerfile
+     copy:
+      src: ./Dockerfile
+      dest: /root/demo-dockerfile/Dockerfile
+      owner: root
+      group: root
+      mode: '0644'
+
+   - name: build container
+     docker_image:
+       name: democontainer:v1.0
+       build:
+        path: /root/demo-dockerfile
+       state: present
+
+   - name: Containerize image
+     docker_container:
+      name: test
+      image: democontainer:v1.0
+      state: started
+      detach: yes
+      interactive: yes
+       
+            
